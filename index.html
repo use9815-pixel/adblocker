@@ -143,7 +143,7 @@
           if (id) el.id = id;
           el.style.cssText =
             "width:1px;height:1px;position:absolute;" +
-            "top:-9999px;left:-9999px;opacity:0;pointer-events:none;";
+            "top:-9999px;left:-9999px;pointer-events:none;";
           baits.push(el);
           if (document.body) {
             document.body.appendChild(el);
@@ -168,8 +168,7 @@
             el.offsetWidth === 0 ||
             el.getClientRects().length === 0 ||
             cs.display === "none" ||
-            cs.visibility === "hidden" ||
-            cs.opacity === "0"
+            cs.visibility === "hidden"
           ) {
             return true;
           }
