@@ -126,66 +126,77 @@
           clearInterval(intervalCheck);
         }
 
-        /* ── METHOD 1: Bait element (class names ad blockers always target) ── */
-        var bait = document.createElement("div");
-        bait.setAttribute(
-          "class",
+        /* ── METHOD 1: Multiple bait elements (aggressive) ── */
+        var baitClasses = [
           "ad-banner pub_300x250 pub_300x250m adsbox doubleclick ad-placement sponsor",
-        );
-        bait.setAttribute("id", "ad-unit-bait");
-        bait.style.cssText =
-          "width:1px;height:1px;position:absolute;" +
-          "top:-9999px;left:-9999px;opacity:0;pointer-events:none;";
-        document.body
-          ? document.body.appendChild(bait)
-          : document.addEventListener("DOMContentLoaded", function () {
-              document.body.appendChild(bait);
+          "ads adsbox ad-unit ad-slot ad-container ad-placement",
+          "ad-banner adsbygoogle textads sponsoredAds advertiser",
+          "ad-300x250 ad-728x90 ad-160x600 ad_300x250 banner-ad",
+          "ad-holder ad-wrapper ad-area adzone adblock-test",
+          "google-ad adsense adsense-box ads-banner adTag",
+          "promoted sponsored ad-disclosure ad_label ad-badge",
+        ];
+        var baits = [];
+        function createBait(cls, id) {
+          var el = document.createElement("div");
+          el.className = cls;
+          if (id) el.id = id;
+          el.style.cssText =
+            "width:1px;height:1px;position:absolute;" +
+            "top:-9999px;left:-9999px;opacity:0;pointer-events:none;";
+          baits.push(el);
+          if (document.body) {
+            document.body.appendChild(el);
+          } else {
+            document.addEventListener("DOMContentLoaded", function () {
+              document.body.appendChild(el);
             });
+          }
+          return el;
+        }
+        var bait = createBait(baitClasses[0], "ad-unit-bait");
+        for (var i = 1; i < baitClasses.length; i++) {
+          createBait(baitClasses[i]);
+        }
 
-        /* ── METHOD 2: Fake ad script request ── */
-        /* Ad blockers block requests to files named ads.js, banner.js etc */
-        /* Create an empty ads.js file in your website root for this to work */
-        var fakeScript = document.createElement("script");
-        fakeScript.src = "/ads.js?cb=" + Date.now();
-        fakeScript.onerror = function () {
-          block();
-        };
-        fakeScript.onload = function () {
-          /* Script loaded fine — no blocker blocking scripts */
-        };
-        document.head.appendChild(fakeScript);
+        function isBaitBlocked(el) {
+          if (!el) return true;
+          var cs = window.getComputedStyle(el);
+          if (
+            el.offsetParent === null ||
+            el.offsetHeight === 0 ||
+            el.offsetWidth === 0 ||
+            el.getClientRects().length === 0 ||
+            cs.display === "none" ||
+            cs.visibility === "hidden" ||
+            cs.opacity === "0"
+          ) {
+            return true;
+          }
+          return false;
+        }
 
-        /* Also try a second bait URL format used by Adobe blocker */
-        var fakeScript2 = document.createElement("script");
-        fakeScript2.src = "/static/ads/banner.js?cb=" + Date.now();
-        fakeScript2.onerror = function () {
-          block();
-        };
-        document.head.appendChild(fakeScript2);
+        function aggressiveCheck() {
+          for (var j = 0; j < baits.length; j++) {
+            if (isBaitBlocked(baits[j])) {
+              block();
+              return true;
+            }
+          }
+          return false;
+        }
 
-        /* ── METHOD 3: CSS computed style check on bait element ── */
+        /* ── METHOD 2: CSS computed style check on bait element ── */
         setTimeout(function () {
           var el = document.getElementById("ad-unit-bait") || bait;
           if (!el) {
             block();
             return;
           }
-          var cs = window.getComputedStyle(el);
-          if (
-            el.offsetHeight === 0 ||
-            el.offsetParent === null ||
-            cs.display === "none" ||
-            cs.visibility === "hidden" ||
-            cs.opacity === "0"
-          ) {
-            block();
-          }
-          try {
-            document.body.removeChild(bait);
-          } catch (e) {}
+          aggressiveCheck();
         }, 300);
 
-        /* ── METHOD 4: Second bait with different class names (Adobe blocker) ── */
+        /* ── METHOD 3: Second bait with different class names (Adobe blocker) ── */
         setTimeout(function () {
           if (BLOCKED) return;
           var b2 = document.createElement("div");
@@ -194,47 +205,28 @@
             "position:fixed;top:-2px;left:-2px;" +
             "width:1px;height:1px;pointer-events:none;";
           document.body.appendChild(b2);
-          var cs2 = window.getComputedStyle(b2);
-          if (
-            b2.offsetHeight === 0 ||
-            b2.offsetParent === null ||
-            cs2.display === "none"
-          ) {
-            block();
-          }
+          if (isBaitBlocked(b2)) block();
           try {
             document.body.removeChild(b2);
           } catch (e) {}
         }, 500);
 
-        /* ── METHOD 5: adsbygoogle array check (catches Google Ads blockers) ── */
+        /* ── METHOD 4: adsbygoogle array check (aggressive) ── */
         setTimeout(function () {
           if (BLOCKED) return;
-          /* If adsbygoogle was blocked, the array will not exist or be empty */
-          if (
-            typeof window.adsbygoogle === "undefined" ||
-            (Array.isArray(window.adsbygoogle) &&
-              window.adsbygoogle.length === 0)
-          ) {
-            /* Confirm with one more bait check before blocking */
-            var b3 = document.createElement("div");
-            b3.className = "ad-banner adsbox";
-            b3.style.cssText =
-              "position:absolute;top:-9999px;width:1px;height:1px;";
-            document.body.appendChild(b3);
-            if (b3.offsetHeight === 0 || b3.offsetParent === null) block();
-            try {
-              document.body.removeChild(b3);
-            } catch (e) {}
+          if (typeof window.adsbygoogle === "undefined") {
+            block();
+            return;
           }
+          aggressiveCheck();
         }, 700);
 
-        /* ── METHOD 6: Interval hard re-check every 1s for 15 seconds ── */
+        /* ── METHOD 5: Interval hard re-check every 1s for 20 seconds ── */
         /* Catches slow-loading blockers like Adobe and some Firefox extensions */
         var _tick = 0;
         var intervalCheck = setInterval(function () {
           _tick++;
-          if (_tick > 15 || BLOCKED) {
+          if (_tick > 20 || BLOCKED) {
             clearInterval(intervalCheck);
             return;
           }
@@ -246,14 +238,7 @@
             "width:1px;height:1px;pointer-events:none;";
           document.body.appendChild(probe);
 
-          var pcs = window.getComputedStyle(probe);
-          if (
-            probe.offsetHeight === 0 ||
-            probe.offsetParent === null ||
-            pcs.display === "none"
-          ) {
-            block();
-          }
+          if (isBaitBlocked(probe)) block();
           try {
             document.body.removeChild(probe);
           } catch (e) {}
