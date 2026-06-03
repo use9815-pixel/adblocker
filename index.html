@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #__adb_overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 2147483647;
+        align-items: center;
+        justify-content: center;
+        font-family: Arial, sans-serif;
+      }
+      #__adb_overlay.active {
+        display: flex !important;
+      }
+      body.__adb_block {
+        overflow: hidden !important;
+        pointer-events: none;
+        user-select: none;
+      }
+      #__adb_overlay {
+        pointer-events: all;
+      }
+      #__adb_box {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 44px 52px;
+        max-width: 460px;
+        width: 90%;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      #__adb_box svg {
+        width: 56px;
+        height: 56px;
+        margin-bottom: 18px;
+      }
+      #__adb_box h2 {
+        font-size: 22px;
+        margin: 0 0 12px;
+        color: #111111;
+        font-weight: 700;
+      }
+      #__adb_box p {
+        font-size: 15px;
+        color: #555555;
+        line-height: 1.7;
+        margin: 0 0 8px;
+      }
+      #__adb_box ol {
+        text-align: left;
+        font-size: 14px;
+        color: #444444;
+        margin: 14px 0 22px;
+        padding-left: 20px;
+        line-height: 2.2;
+      }
+      #__adb_btn {
+        background: #d63030;
+        color: #ffffff;
+        border: none;
+        padding: 14px 30px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        letter-spacing: 0.2px;
+      }
+      #__adb_btn:hover {
+        background: #b32828;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hello World</h1>
+    <script>
+      (function () {
+        /* ── Create overlay via JS (no HTML in your file needed) ── */
+        var overlay = document.createElement("div");
+        overlay.id = "__adb_overlay";
+        overlay.innerHTML =
+          '<div id="__adb_box">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="#d63030" stroke-width="1.8">' +
+          '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' +
+          '<line x1="8" y1="12" x2="16" y2="12"/>' +
+          "</svg>" +
+          "<h2>Ad Blocker Detected</h2>" +
+          "<p>This website is <strong>free</strong> because of ads.<br>" +
+          "Your ad blocker is blocking our content.</p>" +
+          "<ol>" +
+          "<li>Click your ad blocker icon in the browser toolbar</li>" +
+          "<li>Disable it for this website</li>" +
+          "<li>Click the button below</li>" +
+          "</ol>" +
+          '<button id="__adb_btn" onclick="location.reload()">&#10003; I\'ve disabled it &mdash; Continue</button>' +
+          "</div>";
+
+        /* Append overlay to body as soon as DOM is ready */
+        function appendOverlay() {
+          if (document.body) {
+            document.body.appendChild(overlay);
+          } else {
+            document.addEventListener("DOMContentLoaded", function () {
+              document.body.appendChild(overlay);
+            });
+          }
+        }
+        appendOverlay();
+
+        /* ── Block function — runs once ── */
+        var BLOCKED = false;
+        function block() {
+          if (BLOCKED) return;
+          BLOCKED = true;
+          /* Lock the page */
+          document.body.classList.add("__adb_block");
+          /* Show overlay */
+          document.getElementById("__adb_overlay").classList.add("active");
+          /* Kill all interval checks — no need to keep running */
+          clearInterval(intervalCheck);
+        }
+
+        /* ── METHOD 1: Bait element (class names ad blockers always target) ── */
+        var bait = document.createElement("div");
+        bait.setAttribute(
+          "class",
+          "ad-banner pub_300x250 pub_300x250m adsbox doubleclick ad-placement sponsor",
+        );
+        bait.setAttribute("id", "ad-unit-bait");
+        bait.style.cssText =
+          "width:1px;height:1px;position:absolute;" +
+          "top:-9999px;left:-9999px;opacity:0;pointer-events:none;";
+        document.body
+          ? document.body.appendChild(bait)
+          : document.addEventListener("DOMContentLoaded", function () {
+              document.body.appendChild(bait);
+            });
+
+        /* ── METHOD 2: Fake ad script request ── */
+        /* Ad blockers block requests to files named ads.js, banner.js etc */
+        /* Create an empty ads.js file in your website root for this to work */
+        var fakeScript = document.createElement("script");
+        fakeScript.src = "/ads.js?cb=" + Date.now();
+        fakeScript.onerror = function () {
+          block();
+        };
+        fakeScript.onload = function () {
+          /* Script loaded fine — no blocker blocking scripts */
+        };
+        document.head.appendChild(fakeScript);
+
+        /* Also try a second bait URL format used by Adobe blocker */
+        var fakeScript2 = document.createElement("script");
+        fakeScript2.src = "/static/ads/banner.js?cb=" + Date.now();
+        fakeScript2.onerror = function () {
+          block();
+        };
+        document.head.appendChild(fakeScript2);
+
+        /* ── METHOD 3: CSS computed style check on bait element ── */
+        setTimeout(function () {
+          var el = document.getElementById("ad-unit-bait") || bait;
+          if (!el) {
+            block();
+            return;
+          }
+          var cs = window.getComputedStyle(el);
+          if (
+            el.offsetHeight === 0 ||
+            el.offsetParent === null ||
+            cs.display === "none" ||
+            cs.visibility === "hidden" ||
+            cs.opacity === "0"
+          ) {
+            block();
+          }
+          try {
+            document.body.removeChild(bait);
+          } catch (e) {}
+        }, 300);
+
+        /* ── METHOD 4: Second bait with different class names (Adobe blocker) ── */
+        setTimeout(function () {
+          if (BLOCKED) return;
+          var b2 = document.createElement("div");
+          b2.className = "adsbox adsbygoogle textads sponsoredAds";
+          b2.style.cssText =
+            "position:fixed;top:-2px;left:-2px;" +
+            "width:1px;height:1px;pointer-events:none;";
+          document.body.appendChild(b2);
+          var cs2 = window.getComputedStyle(b2);
+          if (
+            b2.offsetHeight === 0 ||
+            b2.offsetParent === null ||
+            cs2.display === "none"
+          ) {
+            block();
+          }
+          try {
+            document.body.removeChild(b2);
+          } catch (e) {}
+        }, 500);
+
+        /* ── METHOD 5: adsbygoogle array check (catches Google Ads blockers) ── */
+        setTimeout(function () {
+          if (BLOCKED) return;
+          /* If adsbygoogle was blocked, the array will not exist or be empty */
+          if (
+            typeof window.adsbygoogle === "undefined" ||
+            (Array.isArray(window.adsbygoogle) &&
+              window.adsbygoogle.length === 0)
+          ) {
+            /* Confirm with one more bait check before blocking */
+            var b3 = document.createElement("div");
+            b3.className = "ad-banner adsbox";
+            b3.style.cssText =
+              "position:absolute;top:-9999px;width:1px;height:1px;";
+            document.body.appendChild(b3);
+            if (b3.offsetHeight === 0 || b3.offsetParent === null) block();
+            try {
+              document.body.removeChild(b3);
+            } catch (e) {}
+          }
+        }, 700);
+
+        /* ── METHOD 6: Interval hard re-check every 1s for 15 seconds ── */
+        /* Catches slow-loading blockers like Adobe and some Firefox extensions */
+        var _tick = 0;
+        var intervalCheck = setInterval(function () {
+          _tick++;
+          if (_tick > 15 || BLOCKED) {
+            clearInterval(intervalCheck);
+            return;
+          }
+
+          var probe = document.createElement("div");
+          probe.className = "ad-banner adsbox banner_ad pub_300x250 advert";
+          probe.style.cssText =
+            "position:absolute;top:-9999px;left:-9999px;" +
+            "width:1px;height:1px;pointer-events:none;";
+          document.body.appendChild(probe);
+
+          var pcs = window.getComputedStyle(probe);
+          if (
+            probe.offsetHeight === 0 ||
+            probe.offsetParent === null ||
+            pcs.display === "none"
+          ) {
+            block();
+          }
+          try {
+            document.body.removeChild(probe);
+          } catch (e) {}
+        }, 1000);
+      })();
+    </script>
+  </body>
+</html>
