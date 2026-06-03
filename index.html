@@ -210,17 +210,7 @@
           } catch (e) {}
         }, 500);
 
-        /* ── METHOD 4: adsbygoogle array check (aggressive) ── */
-        setTimeout(function () {
-          if (BLOCKED) return;
-          if (typeof window.adsbygoogle === "undefined") {
-            block();
-            return;
-          }
-          aggressiveCheck();
-        }, 700);
-
-        /* ── METHOD 5: Interval hard re-check every 1s for 20 seconds ── */
+        /* ── METHOD 4: Interval hard re-check every 1s for 20 seconds ── */
         /* Catches slow-loading blockers like Adobe and some Firefox extensions */
         var _tick = 0;
         var intervalCheck = setInterval(function () {
